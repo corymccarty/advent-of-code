@@ -10,5 +10,7 @@ for line in lines:
         current_elf_calories = 0
     else:
         current_elf_calories += int(line)
+if current_elf_calories != 0:
+    elves.append(current_elf_calories)
+    current_elf_calories = 0
 print(max(elves))
-
