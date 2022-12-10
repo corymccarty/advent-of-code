@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List
 
 
 @dataclass
@@ -23,10 +23,18 @@ class Directory:
         total_file_size = sum(file_sizes)
         return total_file_size + self._get_total_subdirectory_size()
 
+    @property
+    def full_directory_list(self) -> List[Directory]:
+        directories = [self]
+        for directory in self.subdirectories.values():
+            directories.extend(directory.full_directory_list)
+        return directories
+
     def get_or_create_subdirectory(self, name: str) -> Directory:
         if name not in self.subdirectories.keys():
             # Might not be necessary if an ls always preceeds cd, but can't hurt
             new_directory = Directory(self, name)
+            self.subdirectories[new_directory.name] = new_directory
             return new_directory
         return self.subdirectories[name]
 
@@ -44,10 +52,16 @@ class Directory:
 
 
 class Filesystem:
+    TOTAL_CAPACITY = 70000000
+
     def __init__(self):
         self.root_directory = Directory(None, "/")
         self.current_directory = self.root_directory
         self.read_input_file()
+
+    @property
+    def free_space(self) -> int:
+        return self.TOTAL_CAPACITY - self.root_directory.size
 
     def read_input_file(self) -> None:
         with open("2022/day_7/input.txt") as file:
@@ -65,6 +79,9 @@ class Filesystem:
             target = command.split()[1]
             if target == "/":
                 self.current_directory = self.root_directory
+            elif target == "..":
+                if self.current_directory != self.root_directory:
+                    self.current_directory = self.current_directory.parent
             else:
                 self.current_directory = (
                     self.current_directory.get_or_create_subdirectory(target)
@@ -87,5 +104,21 @@ class Filesystem:
             raise Exception(f"Unexpected command output: {line}")
 
 
+REQUIRED_CAPACITY = 30000000
+
 filesystem = Filesystem()
 print(f"Total filesystem size: {filesystem.root_directory.size}")
+directories = filesystem.root_directory.full_directory_list
+relevant_directories = [
+    directory for directory in directories if directory.size <= 100000
+]
+print(f"Part 1 answer: {sum([directory.size for directory in relevant_directories])}")
+
+minimum_deletion_size = REQUIRED_CAPACITY - filesystem.free_space
+candidate_directories = [
+    directory for directory in directories if directory.size >= minimum_deletion_size
+]
+size_of_directory_to_delete = min(
+    [directory.size for directory in candidate_directories]
+)
+print(f"Size of directory to delete: {size_of_directory_to_delete}")
